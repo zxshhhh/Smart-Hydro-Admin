@@ -52,7 +52,7 @@ export default function Login() {
         </button>
 
         <p className="text-xs text-gray-400 mt-4 text-center">
-          Demo: admin / 1234
+          Demo: Admin / 1234
         </p>
       </form>
     </div>
