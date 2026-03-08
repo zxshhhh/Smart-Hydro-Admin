@@ -11,7 +11,7 @@ export default function Sidebar() {
       <div>
         <div className="flex items-center gap-3 p-6">
           <div className="bg-green-500 text-white p-2 rounded-lg">
-            🪴
+            🌱
           </div>
           <h1 className="font-bold text-lg">Smart Hydro</h1>
         </div>
