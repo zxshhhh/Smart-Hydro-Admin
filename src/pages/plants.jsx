@@ -5,7 +5,6 @@ import {
   updatePlant,
   deletePlant,
 } from "../services/plantService";
-import { useSearch } from "../context/SearchContext";
 
 export default function Plants() {
   const [plants, setPlants] = useState([]);
