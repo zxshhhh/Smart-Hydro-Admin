@@ -32,9 +32,9 @@ export default function Dashboard() {
   const averageMoisture =
     plants.length > 0
       ? Math.round(
-          plants.reduce((sum, plant) => sum + plant.moisture, 0) /
-            plants.length
-        )
+        plants.reduce((sum, plant) => sum + plant.moisture, 0) /
+        plants.length
+      )
       : 0;
 
   const getStatus = (moisture) => {
@@ -48,7 +48,7 @@ export default function Dashboard() {
       <h1 className="text-2xl font-bold">Dashboard Overview</h1>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <StatCard title="Total Plants" value={plants.length} />
         <StatCard title="Need Water" value={plantsNeedingWater} />
         <StatCard title="Avg Moisture" value={`${averageMoisture}%`} />
@@ -56,25 +56,24 @@ export default function Dashboard() {
       </div>
 
       {/* Plant Overview */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
         <h2 className="font-semibold text-lg mb-4">Plant Status Overview</h2>
 
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {plants.map((plant) => (
             <div
               key={plant.id}
               className="bg-gray-50 shadow-lg rounded-xl p-4 space-y-3"
             >
-              <div className="flex justify-between">
-                <h3 className="font-semibold">{plant.name}</h3>
+              <div className="flex justify-between items-start">
+                <h3 className="font-semibold wrap-break-word pr-2">{plant.name}</h3>
                 <span
-                  className={`text-xs px-3 py-1 rounded-full ${
-                    plant.moisture > 50
+                  className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${plant.moisture > 50
                       ? "bg-green-100 text-green-600"
                       : plant.moisture > 25
-                      ? "bg-yellow-100 text-yellow-600"
-                      : "bg-red-100 text-red-600"
-                  }`}
+                        ? "bg-yellow-100 text-yellow-600"
+                        : "bg-red-100 text-red-600"
+                    }`}
                 >
                   {getStatus(plant.moisture)}
                 </span>

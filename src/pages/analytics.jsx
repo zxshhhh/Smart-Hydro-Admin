@@ -132,7 +132,7 @@ export default function Analytics() {
   return (
     <div className="space-y-8">
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold">
             Water Usage Analytics
@@ -142,7 +142,7 @@ export default function Analytics() {
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
           <button
             onClick={() => setRange("30")}
             className={`px-4 py-2 rounded-lg ${
@@ -168,7 +168,7 @@ export default function Analytics() {
       </div>
 
       {/* SUMMARY CARDS */}
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         <SummaryCard
           title="Total Water Consumed"
           value={`${totalWater.toFixed(2)} L`}
@@ -238,7 +238,7 @@ export default function Analytics() {
       </div>
 
       {/* SENSOR TRENDS */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <SensorChart
           title="Soil Moisture Trend"
           data={sensorData}

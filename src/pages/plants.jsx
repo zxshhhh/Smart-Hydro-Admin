@@ -91,10 +91,10 @@ export default function Plants() {
       <h1 className="text-2xl font-bold">Plant Management</h1>
 
       {/* ================= ADD FORM ================= */}
-      <div className="bg-white p-6 rounded-xl shadow-sm space-y-6">
+      <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm space-y-4 md:space-y-6">
         <h2 className="font-semibold text-lg">Add New Plant</h2>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <input
             placeholder="Plant Name"
             value={newPlant.name}
@@ -145,7 +145,7 @@ export default function Plants() {
 
         {/* Scheduled Settings */}
         {newPlant.schedule.mode === "scheduled" && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input
               type="time"
               value={newPlant.schedule.time}
@@ -180,7 +180,7 @@ export default function Plants() {
         )}
 
         {/* Sensors */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
             placeholder="Moisture Sensor"
             value={newPlant.sensors.moistureSensor}
@@ -220,11 +220,11 @@ export default function Plants() {
       </div>
 
       {/* ================= PLANT LIST ================= */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {filteredPlants.map((plant) => (
           <div
             key={plant.id}
-            className="bg-white p-6 rounded-xl shadow-sm space-y-4"
+            className="bg-white p-4 md:p-6 rounded-xl shadow-sm space-y-4"
           >
             {editingId === plant.id ? (
               <>
@@ -281,7 +281,7 @@ export default function Plants() {
                 </select>
 
                 {editedPlant.schedule.mode === "scheduled" && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <input
                       type="time"
                       value={editedPlant.schedule.time}
@@ -361,7 +361,7 @@ export default function Plants() {
               </>
             ) : (
               <>
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
                     <h2 className="font-semibold text-lg">{plant.name}</h2>
                     <p className="text-sm text-gray-500">

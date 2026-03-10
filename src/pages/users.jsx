@@ -56,9 +56,9 @@ export default function Users() {
       {/* Form */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-xl shadow mb-6"
+        className="bg-white p-4 md:p-6 rounded-xl shadow mb-6"
       >
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <input
             type="text"
             placeholder="Username"
@@ -99,8 +99,8 @@ export default function Users() {
       </form>
 
       {/* User Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white rounded-xl shadow overflow-x-auto">
+        <table className="w-full min-w-[500px]">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-3 text-left">Username</th>
