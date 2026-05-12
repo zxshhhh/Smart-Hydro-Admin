@@ -1,149 +1,357 @@
 import { useEffect, useState } from "react";
-import {
-  getUsers,
-  addUser,
-  updateUser,
-  deleteUser,
-} from "../services/userService";
+
+const API = "http://127.0.0.1:8000/api/v1";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({
-    id: null,
-    username: "",
-    email: "",
-    role: "Operator",
-  });
+  const [query, setQuery] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userPlants, setUserPlants] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    document.title = "Smart Hydro | Users Management";
-  }, []);
+  /* MODAL STATE */
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
-  useEffect(() => {
-    setUsers(getUsers());
-  }, []);
+  const token = localStorage.getItem("token");
 
-  const refreshUsers = () => {
-    setUsers(getUsers());
-  };
+  /* ================= FETCH HELPERS ================= */
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const safeFetch = async (url, options = {}) => {
+    const res = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        ...options.headers,
+      },
+      ...options,
+    });
 
-    if (form.id) {
-      updateUser(form);
-    } else {
-      addUser(form);
+    const text = await res.text();
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("API ERROR:", text);
+      throw new Error(text);
     }
 
-    setForm({ id: null, username: "", email: "", role: "Operator" });
-    refreshUsers();
+    return text ? JSON.parse(text) : null;
   };
 
-  const handleEdit = (user) => {
-    setForm(user);
+  /* ================= DATA LOAD ================= */
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+
+      const data = await safeFetch(`${API}/users/`);
+
+      setUsers(
+        Array.isArray(data)
+          ? data
+          : data.results || []
+      );
+    } catch (err) {
+      console.error("Failed to fetch users");
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id) => {
-    deleteUser(id);
-    refreshUsers();
+  const fetchUserPlants = async (userId) => {
+    try {
+      const data = await safeFetch(
+        `${API}/users/${userId}/plants/`
+      );
+
+      setUserPlants(
+        Array.isArray(data)
+          ? data
+          : data.results || []
+      );
+    } catch {
+      setUserPlants([]);
+    }
   };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  /* ================= ACTIONS ================= */
+
+  const handleAddUser = async () => {
+    if (!newUsername || !newPassword) {
+      alert("Username and password are required");
+      return;
+    }
+
+    try {
+      await safeFetch(`http://127.0.0.1:8000/register/`, {
+        method: "POST",
+        body: JSON.stringify({
+          username: newUsername,
+          password: newPassword,
+        }),
+      });
+
+      setNewUsername("");
+      setNewPassword("");
+      setShowAddModal(false);
+
+      fetchUsers();
+    } catch (err) {
+      console.error("Failed to add user");
+      alert("Failed to create user");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this user?")) return;
+
+    try {
+      await safeFetch(`${API}/users/${id}/`, {
+        method: "DELETE",
+      });
+
+      setUsers((prev) =>
+        prev.filter((u) => u.id !== id)
+      );
+    } catch {
+      console.error("Delete failed");
+    }
+  };
+
+  const handleUpdate = async (user) => {
+    const username = prompt(
+      "New Username:",
+      user.username
+    );
+
+    if (!username) return;
+
+    try {
+      await safeFetch(`${API}/users/${user.id}/`, {
+        method: "PUT",
+        body: JSON.stringify({ username }),
+      });
+
+      fetchUsers();
+    } catch {
+      console.error("Update failed");
+    }
+  };
+
+  const handleChangePassword = async (user) => {
+    const password = prompt("New Password:");
+
+    if (!password) return;
+
+    try {
+      await safeFetch(
+        `${API}/users/${user.id}/change-password/`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ password }),
+        }
+      );
+
+      alert("Password updated");
+    } catch {
+      console.error("Password change failed");
+    }
+  };
+
+  /* ================= FILTER ================= */
+
+  const filtered = users.filter((u) =>
+    u.username
+      .toLowerCase()
+      .includes(query.toLowerCase())
+  );
+
+  /* ================= UI ================= */
+
+  if (loading) {
+    return (
+      <p className="p-6">
+        Loading users... because apparently databases
+        enjoy dramatic entrances.
+      </p>
+    );
+  }
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">User Management</h1>
+    <div className="p-6 space-y-6">
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">
+          Users Management
+        </h1>
 
-      {/* Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-4 md:p-6 rounded-xl shadow mb-6"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input
-            type="text"
-            placeholder="Username"
-            className="border p-2 rounded transition hover:bg-green-100"
-            value={form.username}
-            onChange={(e) =>
-              setForm({ ...form, username: e.target.value })
-            }
-            required
-          />
-
-          <input
-            type="email"
-            placeholder="Email"
-            className="border p-2 rounded transition hover:bg-green-100"
-            value={form.email}
-            onChange={(e) =>
-              setForm({ ...form, email: e.target.value })
-            }
-            required
-          />
-
-          <select
-            className="border p-2 rounded cursor-pointer transition hover:bg-green-100"
-            value={form.role}
-            onChange={(e) =>
-              setForm({ ...form, role: e.target.value })
-            }
-          >
-            <option>Administrator</option>
-            <option>Operator</option>
-          </select>
-        </div>
-
-        <button className="mt-4 bg-green-600 text-white px-6 py-2 rounded cursor-pointer transition hover:bg-green-700">
-          {form.id ? "Update User" : "Add User"}
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition cursor-pointer"
+        >
+          Add User
         </button>
-      </form>
-
-      {/* User Table */}
-      <div className="bg-white rounded-xl shadow overflow-x-auto">
-        <table className="w-full min-w-[500px]">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="p-3 text-left">Username</th>
-              <th className="p-3 text-left">Email</th>
-              <th className="p-3 text-left">Role</th>
-              <th className="p-3 text-center">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id} className="border-t border-gray-200">
-                <td className="p-3">{user.username}</td>
-                <td className="p-3">{user.email}</td>
-                <td className="p-3">{user.role}</td>
-                <td className="p-3 text-center space-x-2">
-                  <button
-                    onClick={() => handleEdit(user)}
-                    className="bg-blue-500 text-white px-3 py-1 rounded cursor-pointer transition hover:bg-blue-600"
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(user.id)}
-                    className="bg-red-500 text-white px-3 py-1 rounded cursor-pointer transition hover:bg-red-600"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-
-            {users.length === 0 && (
-              <tr>
-                <td colSpan="4" className="p-6 text-center text-gray-400">
-                  No users found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
       </div>
+
+      {/* SEARCH */}
+      <input
+        placeholder="Search users..."
+        className="border p-3 rounded-lg w-full outline-none focus:ring-2 focus:ring-green-600"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+
+      {/* USERS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {filtered.map((user) => (
+          <div
+            key={user.id}
+            className="bg-white p-5 rounded-xl shadow space-y-4"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-bold uppercase">
+                {user.username?.charAt(0)}
+              </div>
+
+              <div>
+                <h2 className="font-semibold text-lg">
+                  {user.username}
+                </h2>
+
+                <p className="text-xs text-gray-500">
+                  User ID: {user.id}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 flex-wrap text-sm">
+              <button
+                onClick={() => handleUpdate(user)}
+                className="text-blue-600 hover:text-blue-800 cursor-pointer"
+              >
+                Edit
+              </button>
+
+              <button
+                onClick={() => handleDelete(user.id)}
+                className="text-red-500 hover:text-red-700 cursor-pointer"
+              >
+                Delete
+              </button>
+
+              <button
+                onClick={() =>
+                  handleChangePassword(user)
+                }
+                className="text-yellow-600 hover:text-yellow-700 cursor-pointer"
+              >
+                Change Password
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedUser(user);
+                  fetchUserPlants(user.id);
+                }}
+                className="text-green-600 hover:text-green-700 cursor-pointer"
+              >
+                View Plants
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* USER PLANTS */}
+      {selectedUser && (
+        <div className="bg-white p-6 rounded-xl shadow">
+          <h2 className="font-semibold mb-4 text-lg">
+            Plants of {selectedUser.username}
+          </h2>
+
+          {userPlants.length === 0 ? (
+            <p className="text-gray-500">
+              No plants assigned. A hydroponics system
+              without plants. Revolutionary agriculture.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {userPlants.map((p) => (
+                <li
+                  key={p.id}
+                  className="bg-gray-100 px-4 py-2 rounded-lg"
+                >
+                  🌱 {p.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* ADD USER MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 animate-fadeIn">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold">
+                Create User
+              </h2>
+
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-500 hover:text-black text-xl cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Username"
+                value={newUsername}
+                onChange={(e) =>
+                  setNewUsername(e.target.value)
+                }
+                className="w-full p-3 rounded-lg border outline-none focus:ring-2 focus:ring-green-600"
+              />
+
+              <input
+                type="password"
+                placeholder="Password"
+                value={newPassword}
+                onChange={(e) =>
+                  setNewPassword(e.target.value)
+                }
+                className="w-full p-3 rounded-lg border outline-none focus:ring-2 focus:ring-green-600"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleAddUser}
+                className="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white cursor-pointer"
+              >
+                Create User
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

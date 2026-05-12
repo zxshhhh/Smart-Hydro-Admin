@@ -1,112 +1,198 @@
 import { useEffect, useState } from "react";
-import { getPlants } from "../services/plantService";
+import { togglePump } from "../services/plantService";
+import Card from "../components/PlantCard";
+import Sensor from "../components/PlantSensor";
+import Status from "../components/PlantStatus";
 
 export default function Dashboard() {
   const [plants, setPlants] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    document.title = "Smart Hydro | Dashboard";
-  }, []);
+  const API = "http://127.0.0.1:8000/api/v1";
 
-  useEffect(() => {
-    loadPlants();
-    const handleUpdate = () => loadPlants();
-    // Refresh when returning to page
-    window.addEventListener("plantUpdated", handleUpdate);
-    window.addEventListener("focus", loadPlants);
+  const fetchPlants = async () => {
+    try {
+      const res = await fetch(`${API}/plants/`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
-    return () => {
-      window.removeEventListener("plantUpdated", handleUpdate);
-      window.removeEventListener("focus", loadPlants);
-    };
-  }, []);
+      if (!res.ok) {
+        console.error("Failed to fetch plants");
+        setPlants([]);
+        return;
+      }
 
-  const loadPlants = () => {
-    setPlants(getPlants());
+      const data = await res.json();
+      const plantList = Array.isArray(data) ? data : data.results || [];
+
+      const plantsWithSensors = await Promise.all(
+        plantList.map(async (plant) => {
+          try {
+            const sensorRes = await fetch(
+              `${API}/plants/${plant.id}/sensor-data/latest/`,
+              {
+                headers: {
+                  Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+              }
+            );
+
+            // 🚫 No sensor yet (very normal in IoT)
+            if (!sensorRes.ok) {
+              return {
+                ...plant,
+                moisture: null,
+                temperature: null,
+                humidity: null,
+              };
+            }
+
+            const sensorData = await sensorRes.json();
+
+            return {
+              ...plant,
+              moisture: Number(sensorData.soil_moisture),
+              temperature: Number(sensorData.temperature),
+              humidity: Number(sensorData.humidity),
+            };
+          } catch (err) {
+            console.warn("Sensor fetch failed:", err);
+            return {
+              ...plant,
+              moisture: null,
+              temperature: null,
+              humidity: null,
+            };
+          }
+        })
+      );
+
+      setPlants(plantsWithSensors);
+    } catch (err) {
+      console.error("FETCH FAILED:", err);
+      setPlants([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const plantsNeedingWater = plants.filter(
-    (plant) => plant.moisture <= 50
-  ).length;
+  useEffect(() => {
+    fetchPlants();
+    const interval = setInterval(fetchPlants, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const averageMoisture =
-    plants.length > 0
-      ? Math.round(
-        plants.reduce((sum, plant) => sum + plant.moisture, 0) /
-        plants.length
-      )
-      : 0;
-
-  const getStatus = (moisture) => {
-    if (moisture > 50) return "Healthy";
-    if (moisture > 25) return "Needs Water";
-    return "Critical";
+  const handlePumpToggle = async (plant) => {
+    await togglePump(plant.id, !plant.pump_status);
+    fetchPlants();
   };
+
+  const validMoisture = plants
+    .map((p) => p.moisture)
+    .filter((m) => typeof m === "number");
+
+  const avgMoisture =
+    validMoisture.reduce((a, b) => a + b, 0) /
+    (validMoisture.length || 1);
+
+  const systemStatus =
+    validMoisture.length === 0
+      ? "No Sensor Data"
+      : avgMoisture < 40
+      ? "Dry - Needs Water"
+      : avgMoisture > 70
+      ? "Overwater Risk"
+      : "Optimal";
+
+  if (loading) {
+    return <p className="p-6">Loading dashboard...</p>;
+  }
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Dashboard Overview</h1>
+    <div className="p-6 space-y-6">
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Smart Hydro Dashboard</h1>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <StatCard title="Total Plants" value={plants.length} />
-        <StatCard title="Need Water" value={plantsNeedingWater} />
-        <StatCard title="Avg Moisture" value={`${averageMoisture}%`} />
-        <StatCard title="Active Zones" value={[...new Set(plants.map(p => p.zone))].length} />
-      </div>
-
-      {/* Plant Overview */}
-      <div className="bg-white rounded-xl shadow-sm p-4 md:p-6">
-        <h2 className="font-semibold text-lg mb-4">Plant Status Overview</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {plants.map((plant) => (
-            <div
-              key={plant.id}
-              className="bg-gray-50 shadow-lg rounded-xl p-4 space-y-3"
-            >
-              <div className="flex justify-between items-start">
-                <h3 className="font-semibold wrap-break-word pr-2">{plant.name}</h3>
-                <span
-                  className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${plant.moisture > 50
-                      ? "bg-green-100 text-green-600"
-                      : plant.moisture > 25
-                        ? "bg-yellow-100 text-yellow-600"
-                        : "bg-red-100 text-red-600"
-                    }`}
-                >
-                  {getStatus(plant.moisture)}
-                </span>
-              </div>
-
-              <div className="text-sm text-gray-500">
-                {plant.room} • {plant.zone}
-              </div>
-
-              <div className="text-sm">
-                Moisture: {plant.moisture}%
-              </div>
-
-              {/* Simple Progress Bar */}
-              <div className="w-full bg-gray-200 h-2 rounded-full">
-                <div
-                  className="bg-green-500 h-2 rounded-full max-w-full"
-                  style={{ width: `${plant.moisture}%` }}
-                />
-              </div>
-            </div>
-          ))}
+        <div className="text-sm text-gray-500">
+          System Status:{" "}
+          <span className="font-semibold">{systemStatus}</span>
         </div>
       </div>
-    </div>
-  );
-}
 
-function StatCard({ title, value }) {
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
-      <h3 className="text-gray-500 text-sm">{title}</h3>
-      <p className="text-2xl font-bold mt-2">{value}</p>
+      {/* SUMMARY */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card title="Plants" value={plants.length} />
+
+        <Card
+          title="Avg Moisture"
+          value={
+            validMoisture.length
+              ? `${avgMoisture.toFixed(1)}%`
+              : "--"
+          }
+        />
+
+        <Card
+          title="Active Pumps"
+          value={plants.filter((p) => p.pump_status).length}
+        />
+      </div>
+
+      {/* PLANT CARDS */}
+      <div className="grid grid-cols-2 gap-6">
+        {plants.map((plant) => (
+          <div
+            key={plant.id}
+            className="bg-white p-5 rounded-xl shadow space-y-4"
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="font-semibold text-lg">
+                  {plant.name}
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Owner: {plant.user_username}
+                </p>
+              </div>
+
+              <button
+                onClick={() => handlePumpToggle(plant)}
+                className={`px-3 py-1 rounded-lg text-sm cursor-pointer ${
+                  plant.pump_status
+                    ? "bg-red-500 text-white hover:bg-red-600"
+                    : "bg-green-600 text-white hover:bg-green-700"
+                }`}
+              >
+                {plant.pump_status ? "Stop" : "Water"}
+              </button>
+            </div>
+
+            {/* SENSOR DISPLAY */}
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <Sensor
+                label="Moisture"
+                value={plant.moisture}
+                unit="%"
+              />
+              <Sensor
+                label="Temp"
+                value={plant.temperature}
+                unit="°C"
+              />
+              <Sensor
+                label="Humidity"
+                value={plant.humidity}
+                unit="%"
+              />
+            </div>
+
+            <Status moisture={plant.moisture} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

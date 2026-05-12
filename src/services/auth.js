@@ -1,29 +1,27 @@
-import { adminUser } from '../data/admin';
+const BASE_URL = "http://127.0.0.1:8000/api/v1";
 
-const MOCK_USER = {
-  username: adminUser.username,
-  password: adminUser.password,
-};
+export const loginUser = async (username, password) => {
+  const res = await fetch(`${BASE_URL}/login/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ username, password }),
+  });
 
-export const login = (username, password) => {
-  if (username === MOCK_USER.username && password === MOCK_USER.password) {
-    const fakeToken = "smart-hydro-token-123";
-    localStorage.setItem("token", fakeToken);
-    localStorage.setItem("user", JSON.stringify({ username }));
-    return true;
+  if (!res.ok) {
+    throw new Error("Invalid username or password");
   }
-  return false;
+
+  const data = await res.json();
+
+  localStorage.setItem("token", data.access);
+  localStorage.setItem("refresh", data.refresh);
+
+  return data;
 };
 
-export const logout = () => {
+export const logoutUser = () => {
   localStorage.removeItem("token");
-  localStorage.removeItem("user");
-};
-
-export const isAuthenticated = () => {
-  return !!localStorage.getItem("token");
-};
-
-export const getUser = () => {
-  return JSON.parse(localStorage.getItem("user"));
+  localStorage.removeItem("refresh");
 };

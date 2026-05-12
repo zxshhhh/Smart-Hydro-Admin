@@ -1,13 +1,19 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { logout } from "../services/auth";
+import { logoutUser } from "../services/auth";
 
 export default function Sidebar({ isOpen, setIsOpen }) {
   const navigate = useNavigate();
+  
 
   const handleLinkClick = () => {
     if (window.innerWidth < 768) {
       setIsOpen(false);
     }
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    navigate("/login");
   };
 
   return (
@@ -38,18 +44,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             Dashboard
           </NavLink>
           <NavLink
-            to="/analytics"
-            onClick={handleLinkClick}
-            className={({ isActive }) =>
-              `block px-4 py-3 rounded-lg transition ${isActive
-                ? "bg-green-100 text-green-600 font-semibold"
-                : "text-gray-600 hover:bg-gray-100"
-              }`
-            }
-          >
-            Analytics
-          </NavLink>
-          <NavLink
             to="/users"
             onClick={handleLinkClick}
             className={({ isActive }) =>
@@ -73,27 +67,12 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           >
             Plants
           </NavLink>
-          <NavLink
-            to="/settings"
-            onClick={handleLinkClick}
-            className={({ isActive }) =>
-              `block px-4 py-3 rounded-lg transition ${isActive
-                ? "bg-green-100 text-green-600 font-semibold"
-                : "text-gray-600 hover:bg-gray-100"
-              }`
-            }
-          >
-            Settings
-          </NavLink>
         </nav>
       </div>
       {/* Logout */}
       <div className="p-4">
         <button
-          onClick={() => {
-            logout();
-            navigate("/login");
-          }}
+          onClick={handleLogout}
           className="w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition cursor-pointer"
         >
           Logout

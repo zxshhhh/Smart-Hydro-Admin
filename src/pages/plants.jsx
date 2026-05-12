@@ -4,355 +4,119 @@ import {
   addPlant,
   updatePlant,
   deletePlant,
+  togglePump,
 } from "../services/plantService";
 
 export default function Plants() {
   const [plants, setPlants] = useState([]);
+  const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState(null);
-  const [editedPlant, setEditedPlant] = useState(null);
-  const { query } = useSearch();
+  const [editName, setEditName] = useState("");
 
-  const defaultPlant = {
-    name: "",
-    room: "",
-    zone: "",
-    moisture: 60,
-    schedule: {
-      mode: "manual", // manual | scheduled | automatic
-      time: "08:00",
-      frequency: "daily",
-    },
-    sensors: {
-      moistureSensor: "",
-      temperatureSensor: "",
-    },
+  const loadPlants = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/v1/plants/", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      const data = await res.json();
+
+      setPlants(Array.isArray(data) ? data : data.results || []);
+    } catch (err) {
+      console.error("Failed to load plants:", err);
+      setPlants([]);
+    }
   };
-
-  const [newPlant, setNewPlant] = useState(defaultPlant);
 
   useEffect(() => {
     loadPlants();
-    const handleUpdate = () => loadPlants();
-    window.addEventListener("plantUpdated", handleUpdate);
-    window.addEventListener("focus", loadPlants);
-
-    return () => {
-      window.removeEventListener("plantUpdated", handleUpdate);
-      window.removeEventListener("focus", loadPlants);
-    };
   }, []);
 
-  const loadPlants = () => {
-    setPlants(getPlants());
-  };
+  const handleAdd = async () => {
+  if (!newName.trim()) return;
 
-  // SEARCH
-  const filteredPlants = plants.filter((plant) =>
-    `${plant.name} ${plant.room} ${plant.zone}`
-      .toLowerCase()
-      .includes(query.toLowerCase())
-  );
+  try {
+    await addPlant({ name: newName });
 
-  // ADD
-  const handleAddPlant = () => {
-    if (!newPlant.name.trim()) return;
-
-    addPlant(newPlant);
-    setNewPlant(defaultPlant);
+    setNewName("");
     loadPlants();
-    window.dispatchEvent(new Event("plantUpdated"));
-  };
+  } catch (err) {
+    console.error("ADD PLANT ERROR:", err);
+  }
+};
 
-  // DELETE
-  const handleDelete = (id) => {
-    deletePlant(id);
-    loadPlants();
-    window.dispatchEvent(new Event("plantUpdated"));
-  };
-
-  // START EDIT
-  const startEdit = (plant) => {
+  const handleEdit = (plant) => {
     setEditingId(plant.id);
-    setEditedPlant({ ...plant });
+    setEditName(plant.name);
   };
 
-  // SAVE EDIT
-  const saveEdit = () => {
-    updatePlant(editedPlant);
+  const handleSave = async () => {
+    await updatePlant(editingId, {
+      name: editName,
+    });
+
     setEditingId(null);
-    setEditedPlant(null);
+    setEditName("");
     loadPlants();
-    window.dispatchEvent(new Event("plantUpdated"));
+  };
+
+  const handleDelete = async (id) => {
+    await deletePlant(id);
+    loadPlants();
+  };
+
+  const handlePump = async (plant) => {
+    await togglePump(plant.id, !plant.pump_status);
+    loadPlants();
   };
 
   return (
-    <div className="space-y-8">
+    <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Plant Management</h1>
-
-      {/* ================= ADD FORM ================= */}
-      <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm space-y-4 md:space-y-6">
-        <h2 className="font-semibold text-lg">Add New Plant</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <input
-            placeholder="Plant Name"
-            value={newPlant.name}
-            onChange={(e) =>
-              setNewPlant({ ...newPlant, name: e.target.value })
-            }
-            className="bg-gray-100 p-2 rounded-lg"
-          />
-          <input
-            placeholder="Room"
-            value={newPlant.room}
-            onChange={(e) =>
-              setNewPlant({ ...newPlant, room: e.target.value })
-            }
-            className="bg-gray-100 p-2 rounded-lg"
-          />
-          <input
-            placeholder="Zone"
-            value={newPlant.zone}
-            onChange={(e) =>
-              setNewPlant({ ...newPlant, zone: e.target.value })
-            }
-            className="bg-gray-100 p-2 rounded-lg"
-          />
-        </div>
-
-        {/* Watering Mode */}
-        <div>
-          <label className="text-sm font-medium">Watering Mode</label>
-          <select
-            value={newPlant.schedule.mode}
-            onChange={(e) =>
-              setNewPlant({
-                ...newPlant,
-                schedule: {
-                  ...newPlant.schedule,
-                  mode: e.target.value,
-                },
-              })
-            }
-            className="w-full mt-1 bg-gray-100 p-2 rounded-lg"
-          >
-            <option value="manual">Manual</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="Automatic">Automatic</option>
-          </select>
-        </div>
-
-        {/* Scheduled Settings */}
-        {newPlant.schedule.mode === "scheduled" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input
-              type="time"
-              value={newPlant.schedule.time}
-              onChange={(e) =>
-                setNewPlant({
-                  ...newPlant,
-                  schedule: {
-                    ...newPlant.schedule,
-                    time: e.target.value,
-                  },
-                })
-              }
-              className="bg-gray-100 p-2 rounded-lg"
-            />
-            <select
-              value={newPlant.schedule.frequency}
-              onChange={(e) =>
-                setNewPlant({
-                  ...newPlant,
-                  schedule: {
-                    ...newPlant.schedule,
-                    frequency: e.target.value,
-                  },
-                })
-              }
-              className="bg-gray-100 p-2 rounded-lg"
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-            </select>
-          </div>
-        )}
-
-        {/* Sensors */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input
-            placeholder="Moisture Sensor"
-            value={newPlant.sensors.moistureSensor}
-            onChange={(e) =>
-              setNewPlant({
-                ...newPlant,
-                sensors: {
-                  ...newPlant.sensors,
-                  moistureSensor: e.target.value,
-                },
-              })
-            }
-            className="bg-gray-100 p-2 rounded-lg"
-          />
-          <input
-            placeholder="Temperature Sensor"
-            value={newPlant.sensors.temperatureSensor}
-            onChange={(e) =>
-              setNewPlant({
-                ...newPlant,
-                sensors: {
-                  ...newPlant.sensors,
-                  temperatureSensor: e.target.value,
-                },
-              })
-            }
-            className="bg-gray-100 p-2 rounded-lg"
-          />
-        </div>
-
+      {/* ADD FORM */}
+      <div className="bg-white p-5 rounded-xl shadow flex gap-3">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="Plant name"
+          className="flex-1 p-3 bg-gray-100 rounded-lg outline-none focus:ring-2 focus:ring-green-600 transition-all ease-in-out duration-150"
+        />
         <button
-          onClick={handleAddPlant}
-          className="bg-green-600 text-white px-6 py-2 rounded-lg cursor-pointer transition duration-200 hover:bg-green-700"
+          onClick={handleAdd}
+          className="bg-green-600 text-white px-5 rounded-lg cursor-pointer hover:bg-green-700 transition-all ease-in-out duration-150"
         >
-          Add Plant
+          Add
         </button>
       </div>
-
-      {/* ================= PLANT LIST ================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {filteredPlants.map((plant) => (
+      {/* PLANT LIST */}
+      <div className="grid grid-cols-2 gap-6">
+        {plants.map((plant) => (
           <div
             key={plant.id}
-            className="bg-white p-4 md:p-6 rounded-xl shadow-sm space-y-4"
+            className="bg-white p-5 rounded-xl shadow space-y-4"
           >
             {editingId === plant.id ? (
               <>
                 <input
-                  value={editedPlant.name}
+                  value={editName}
                   onChange={(e) =>
-                    setEditedPlant({
-                      ...editedPlant,
-                      name: e.target.value,
-                    })
+                    setEditName(e.target.value)
                   }
-                  className="bg-gray-100 p-2 rounded-lg w-full"
+                  className="w-full p-2 bg-gray-100 rounded-lg"
                 />
-
-                <input
-                  value={editedPlant.room}
-                  onChange={(e) =>
-                    setEditedPlant({
-                      ...editedPlant,
-                      room: e.target.value,
-                    })
-                  }
-                  className="bg-gray-100 p-2 rounded-lg w-full"
-                />
-
-                <input
-                  value={editedPlant.zone}
-                  onChange={(e) =>
-                    setEditedPlant({
-                      ...editedPlant,
-                      zone: e.target.value,
-                    })
-                  }
-                  className="bg-gray-100 p-2 rounded-lg w-full"
-                />
-
-                {/* Watering Mode */}
-                <select
-                  value={editedPlant.schedule.mode}
-                  onChange={(e) =>
-                    setEditedPlant({
-                      ...editedPlant,
-                      schedule: {
-                        ...editedPlant.schedule,
-                        mode: e.target.value,
-                      },
-                    })
-                  }
-                  className="bg-gray-100 p-2 rounded-lg w-full"
-                >
-                  <option value="manual">Manual</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="automatic">Automatic</option>
-                </select>
-
-                {editedPlant.schedule.mode === "scheduled" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      type="time"
-                      value={editedPlant.schedule.time}
-                      onChange={(e) =>
-                        setEditedPlant({
-                          ...editedPlant,
-                          schedule: {
-                            ...editedPlant.schedule,
-                            time: e.target.value,
-                          },
-                        })
-                      }
-                      className="bg-gray-100 p-2 rounded-lg"
-                    />
-                    <select
-                      value={editedPlant.schedule.frequency}
-                      onChange={(e) =>
-                        setEditedPlant({
-                          ...editedPlant,
-                          schedule: {
-                            ...editedPlant.schedule,
-                            frequency: e.target.value,
-                          },
-                        })
-                      }
-                      className="bg-gray-100 p-2 rounded-lg"
-                    >
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                    </select>
-                  </div>
-                )}
-
-                {/* Sensors */}
-                <input
-                  value={editedPlant.sensors.moistureSensor}
-                  onChange={(e) =>
-                    setEditedPlant({
-                      ...editedPlant,
-                      sensors: {
-                        ...editedPlant.sensors,
-                        moistureSensor: e.target.value,
-                      },
-                    })
-                  }
-                  className="bg-gray-100 p-2 rounded-lg w-full"
-                />
-
-                <input
-                  value={editedPlant.sensors.temperatureSensor}
-                  onChange={(e) =>
-                    setEditedPlant({
-                      ...editedPlant,
-                      sensors: {
-                        ...editedPlant.sensors,
-                        temperatureSensor: e.target.value,
-                      },
-                    })
-                  }
-                  className="bg-gray-100 p-2 rounded-lg w-full"
-                />
-
-                <div className="flex gap-3">
+                <div className="flex gap-2">
                   <button
-                    onClick={saveEdit}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg cursor-pointer"
+                    onClick={handleSave}
+                    className="bg-green-600 text-white px-3 py-1 rounded cursor-pointer hover:bg-green-700"
                   >
                     Save
                   </button>
+
                   <button
                     onClick={() => setEditingId(null)}
-                    className="bg-gray-300 px-4 py-2 rounded-lg cursor-pointer"
+                    className="bg-gray-300 px-3 py-1 rounded cursor-pointer hover:bg-gray-400"
                   >
                     Cancel
                   </button>
@@ -360,37 +124,43 @@ export default function Plants() {
               </>
             ) : (
               <>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <h2 className="font-semibold text-lg">{plant.name}</h2>
-                    <p className="text-sm text-gray-500">
-                      {plant.room} • {plant.zone}
-                    </p>
-                  </div>
-                  <div className="flex gap-3">
+                <div className="flex justify-between items-center">
+                  <h2 className="font-semibold text-lg">
+                    {plant.name}
+                  </h2>
+                  <div className="flex gap-2">
                     <button
-                      onClick={() => startEdit(plant)}
-                      className="text-blue-600 text-sm cursor-pointer"
+                      onClick={() => handleEdit(plant)}
+                      className="text-blue-600 text-sm cursor-pointer hover:text-blue-800"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(plant.id)}
-                      className="text-red-500 text-sm cursor-pointer"
+                      className="text-red-500 text-sm cursor-pointer hover:text-red-700"
                     >
                       Delete
                     </button>
                   </div>
                 </div>
-
-                <p>Moisture: {plant.moisture}%</p>
                 <p className="text-sm text-gray-500">
-                  Mode: {plant.schedule.mode}
+                  Pump:{" "}
+                  <span className="font-medium">
+                    {plant.pump_status ? "ON" : "OFF"}
+                  </span>
                 </p>
-                <p className="text-sm text-gray-500">
-                  Sensors: {plant.sensors.moistureSensor} /{" "}
-                  {plant.sensors.temperatureSensor}
-                </p>
+                <button
+                  onClick={() => handlePump(plant)}
+                  className={`w-full py-2 rounded-lg text-white cursor-pointer transition-all ease-in-out duration-150 ${
+                    plant.pump_status
+                      ? "bg-red-500 hover:bg-red-600"
+                      : "bg-green-600 hover:bg-green-700"
+                  }`}
+                >
+                  {plant.pump_status
+                    ? "Stop Watering"
+                    : "Start Watering"}
+                </button>
               </>
             )}
           </div>
